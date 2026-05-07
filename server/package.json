@@ -1,0 +1,26 @@
+{
+  "name": "coderev-server",
+  "version": "1.0.0",
+  "description": "AI-powered code review backend",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "axios": "^1.6.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.20",
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

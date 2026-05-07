@@ -1,0 +1,14 @@
+{
+  "name": "coderev",
+  "version": "1.0.0",
+  "description": "CodeRev - AI-powered code review tool",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "npm run dev:server",
+    "build": "npm run build --workspaces",
+    "build:client": "npm run build --workspace=client",
+    "build:server": "npm run build --workspace=server"
+  }
+}
