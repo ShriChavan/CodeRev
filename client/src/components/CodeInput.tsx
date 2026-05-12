@@ -50,9 +50,14 @@ export const CodeInput: React.FC<CodeInputProps> = ({ onSubmit, loading = false 
     }
 
     try {
+      console.log('📤 Submitting code review:');
+      console.log('   Language:', language);
+      console.log('   Code length:', code.length, 'chars');
+      console.log('   Code preview:', code.substring(0, 100));
       await onSubmit({ code, language });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
+      console.error('❌ Submission error:', msg);
       setValidationError(msg);
     }
   };

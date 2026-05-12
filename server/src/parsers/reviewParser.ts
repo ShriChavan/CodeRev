@@ -18,34 +18,68 @@ interface ParsedResponse {
  * Handles wrapped responses (e.g., { "issues": [...] }) and direct arrays
  */
 export function parseGeminiResponse(responseText: string): ReviewIssue[] {
+  let jsonText = '';
   try {
     const trimmed = responseText.trim();
+    console.log('🔍 Parsing Gemini response, length:', trimmed.length);
 
-    // Try to extract JSON from response (in case Gemini adds explanatory text)
-    const jsonMatch = trimmed.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error('No JSON found in Gemini response');
+    // Remove markdown code block wrapper (```json ... ```)
+    jsonText = trimmed;
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.substring(7); // Remove ```json
+      console.log('📝 Removed ```json prefix');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.substring(3); // Remove ```
+      console.log('📝 Removed ``` prefix');
+    }
+    
+    if (jsonText.endsWith('```')) {
+      jsonText = jsonText.substring(0, jsonText.length - 3); // Remove trailing ```
+      console.log('📝 Removed trailing ```');
+    }
+    
+    jsonText = jsonText.trim();
+
+    if (!jsonText) {
+      console.error('❌ Empty JSON text after removing wrapper');
       return [];
     }
 
-    const parsed: ParsedResponse | ReviewIssue[] = JSON.parse(jsonMatch[0]);
+    console.log('📋 Extracted JSON:', jsonText.substring(0, 200));
+    const parsed: ParsedResponse | ReviewIssue[] = JSON.parse(jsonText);
 
     // Handle wrapped response format { "issues": [...] }
     let issues: unknown[] = [];
     if (Array.isArray(parsed)) {
       issues = parsed;
+      console.log(`📊 Parsed as array: ${issues.length} items`);
     } else if (parsed && typeof parsed === 'object' && 'issues' in parsed) {
       issues = Array.isArray(parsed.issues) ? parsed.issues : [];
+      console.log(`📊 Parsed as object with issues: ${issues.length} items`);
+    } else {
+      console.log('⚠️ Unexpected response format:', typeof parsed);
     }
 
     // Validate and filter issues
+    console.log(`🔎 Validating ${issues.length} issues...`);
     const validIssues = issues
-      .map((issue, index) => validateAndNormalizeIssue(issue, index))
+      .map((issue, index) => {
+        const validated = validateAndNormalizeIssue(issue, index);
+        if (!validated) {
+          console.warn(`   ❌ Issue ${index} failed validation:`, issue);
+        }
+        return validated;
+      })
       .filter((issue): issue is ReviewIssue => issue !== null);
 
+    console.log(`✅ Valid issues after filtering: ${validIssues.length}`);
     return validIssues;
   } catch (error) {
-    console.error('Failed to parse Gemini response:', error);
+    console.error('❌ Failed to parse Gemini response:', error);
+    if (error instanceof SyntaxError) {
+      console.error('   📄 Last 200 chars of JSON:', jsonText?.substring(jsonText.length - 200));
+      console.error('   📄 Total JSON length:', jsonText?.length);
+    }
     return [];
   }
 }

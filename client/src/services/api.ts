@@ -11,7 +11,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localho
 
 // Rate limiting: Track last request time to prevent rapid successive calls
 let lastRequestTime = 0;
-const RATE_LIMIT_DELAY_MS = 5000; // 5 second minimum between requests
+const RATE_LIMIT_DELAY_MS = 15000; // 15 second minimum between requests to avoid rate limiting
 
 // Retry configuration for rate limit errors (429)
 const MAX_RETRIES = 3;
@@ -28,24 +28,34 @@ const apiClient = axios.create({
 /**
  * Calls backend /api/review endpoint with automatic retry on rate limit
  * Implements exponential backoff for 429 (rate limit) errors
+ * Enforces 15-second throttle to avoid API quota exhaustion
  */
 export async function submitCodeReview(request: ReviewRequest): Promise<ReviewResponse> {
   let lastError: unknown;
   
+  console.log('🔄 Starting code review submission...');
+  console.log('   Request details:', { code_length: request.code.length, language: request.language });
+  
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      // Check rate limit: prevent requests faster than 5 seconds apart
+      // Check rate limit: prevent requests faster than 15 seconds apart
       const now = Date.now();
       const timeSinceLastRequest = now - lastRequestTime;
       if (timeSinceLastRequest < RATE_LIMIT_DELAY_MS) {
         const waitTime = RATE_LIMIT_DELAY_MS - timeSinceLastRequest;
-        console.warn(`⏳ Rate limiting: waiting ${waitTime}ms before next request...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        const seconds = Math.ceil(waitTime / 1000);
+        console.warn(`⏳ Rate limiting: waiting ${seconds}s before next request (API quota protection)...`);
+        throw new Error(`Rate limiting: waiting ${seconds}s before next request`);
       }
       lastRequestTime = Date.now();
 
-      console.log(`📤 Submitting code review request (attempt ${attempt}/${MAX_RETRIES}) to: ${API_BASE_URL}`);
+      console.log(`📤 Submitting code review (attempt ${attempt}/${MAX_RETRIES})...`);
       const response = await apiClient.post<ReviewResponse>('/review', request);
+      
+      console.log('✅ Received response from backend:');
+      console.log('   Success:', response.data.success);
+      console.log('   Issues found:', response.data.issues?.length || 0);
+      console.log('   Request ID:', response.data.requestId);
       console.log('✅ Review completed:', response.data);
       return response.data;
       
@@ -60,7 +70,8 @@ export async function submitCodeReview(request: ReviewRequest): Promise<ReviewRe
         // Handle rate limit errors (429) with exponential backoff
         if (statusCode === 429 && attempt < MAX_RETRIES) {
           const delayMs = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-          console.warn(`⚠️ Rate limited (429). Retrying in ${delayMs}ms... (attempt ${attempt}/${MAX_RETRIES})`);
+          const seconds = Math.ceil(delayMs / 1000);
+          console.warn(`⚠️ Rate limited (429). Retrying in ${seconds}s... (attempt ${attempt}/${MAX_RETRIES})`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
           continue; // Try again
         }

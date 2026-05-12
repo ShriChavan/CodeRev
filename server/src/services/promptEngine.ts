@@ -8,16 +8,40 @@ import { ReviewRequest } from '../types/review.types.js';
 
 /**
  * Builds the system prompt for code review
- * Instructs Gemini to analyze code and return JSON with categorized issues
+ * Focuses on bugs, security issues, and code quality
  */
 export function buildSystemPrompt(): string {
-  return `Review code for issues. Respond only with valid JSON.
+  return `Analyze code for BUGS and SECURITY ISSUES. Max 5 critical issues. Respond ONLY with valid JSON.
 
-Categories: bug (logical errors), security (vulnerabilities), style (formatting), improvement (optimization).
-Severity: error (critical), warning (important), info (minor).
+Focus on TOP CRITICAL issues only:
 
-JSON format: {"issues": [{"id": "issue-1", "severity": "error", "category": "bug", "title": "Brief title", "description": "Details", "suggestedFix": "Fix"}]}
+BUGS:
+- Logic errors, null pointer exceptions, infinite loops, off-by-one errors
+- Missing return statements, unreachable code
+- Type mismatches, incorrect array access
 
+SECURITY - MUST DETECT:
+- SQL injection (string concatenation in queries, + operator, format strings)
+- Dangerous functions: eval, exec
+- Plaintext passwords, credentials in code
+- XSS, CSRF, auth vulnerabilities
+- Resource leaks (unclosed files, connections)
+
+CODE QUALITY:
+- Missing error handling
+- Resource management issues
+
+For EACH issue, be CONCISE (1-2 sentences each):
+{
+  "id": "issue-X",
+  "severity": "error" | "warning" | "info",
+  "category": "bug" | "security" | "style" | "improvement",
+  "title": "Brief title",
+  "description": "1-2 sentence explanation",
+  "suggestedFix": "1 sentence fix"
+}
+
+ALWAYS respond with: {"issues": [...]}
 If no issues: {"issues": []}`;
 }
 

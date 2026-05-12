@@ -7,7 +7,7 @@
 import axios, { AxiosError } from 'axios';
 import { ReviewRequest } from '../types/review.types.js';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const MAX_CODE_LENGTH = 100000; // 100KB limit
 
 interface GeminiRequestPayload {
@@ -90,12 +90,17 @@ export async function reviewCodeWithGemini(
         },
       ],
       generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.3,
+        maxOutputTokens: 4096,
+        temperature: 0.2,
       },
     };
 
     // 3. Call Gemini API
+    console.log(`📤 Sending request to Gemini API...`);
+    console.log(`   System prompt length: ${systemPrompt.length} chars`);
+    console.log(`   User prompt length: ${userPrompt.length} chars`);
+    console.log(`   User prompt preview: ${userPrompt.substring(0, 150)}...`);
+    
     const response = await axios.post<GeminiResponse>(
       `${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`,
       payload,
@@ -115,9 +120,14 @@ export async function reviewCodeWithGemini(
       response.data.candidates[0].content.parts &&
       response.data.candidates[0].content.parts.length > 0
     ) {
-      return response.data.candidates[0].content.parts[0].text;
+      const responseText = response.data.candidates[0].content.parts[0].text;
+      console.log(`✅ Gemini responded:`);
+      console.log(`   Response length: ${responseText.length} chars`);
+      console.log(`   Raw response: ${responseText}`);
+      return responseText;
     }
 
+    console.error('❌ Unexpected response format:', JSON.stringify(response.data, null, 2));
     throw new Error('Unexpected response format from Gemini API');
   } catch (error) {
     if (axios.isAxiosError(error)) {

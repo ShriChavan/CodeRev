@@ -19,7 +19,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({ message = 'Analyzing
         <div className="spinner-ring"></div>
       </div>
       <p className="loading-message">{message}</p>
-      <p className="loading-hint">Usually 5-10 seconds (may retry if API rate limited)</p>
+      <p className="loading-hint">Focusing on critical issues only (5-10 seconds)</p>
     </div>
   );
 };
