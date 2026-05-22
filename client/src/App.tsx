@@ -8,11 +8,13 @@ import './App.css';
 import CodeInput from './components/CodeInput';
 import ReviewPanel from './components/ReviewPanel';
 import LoadingState from './components/LoadingState';
-import { ReviewRequest, ReviewResponse } from './types/review.types';
-import { submitCodeReview } from './services/api';
+import PRInput from './components/PRInput';
+import PRResults from './components/PRResults';
+import { ReviewRequest, ReviewResponse, BatchPRReviewResponse } from './types/review.types';
+import { submitCodeReview, submitPRReview, submitPRComment } from './services/api';
 import axios from 'axios';
 
-type ViewType = 'input' | 'review';
+type ViewType = 'input' | 'review' | 'pr-input' | 'pr-review';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('input');
@@ -20,6 +22,11 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [currentRequest, setCurrentRequest] = useState<ReviewRequest | null>(null);
+  
+  // PR review state
+  const [prReview, setPRReview] = useState<BatchPRReviewResponse | null>(null);
+  const [prUrl, setPRUrl] = useState<string | null>(null);
+  const [githubToken, setGithubToken] = useState<string | null>(null);
   
   // Test state
   const [testLoading, setTestLoading] = useState(false);
@@ -74,7 +81,56 @@ const App: React.FC = () => {
   const handleBackToInput = () => {
     setView('input');
     setReview(null);
+    setPRReview(null);
     setError(null);
+  };
+
+  const handlePRSubmit = async (prUrl: string, githubToken?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📥 Submitting PR review request...');
+      const result = await submitPRReview(prUrl, githubToken);
+      
+      setPRReview(result);
+      setPRUrl(prUrl);
+      setGithubToken(githubToken || null);
+      setView('pr-review');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to review PR';
+      setError(errorMessage);
+      console.error('PR review error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePostComment = async (commentBody: string) => {
+    if (!prUrl) {
+      throw new Error('PR URL not available');
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📝 Posting review comment...');
+      const result = await submitPRComment(prUrl, commentBody, githubToken || undefined);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to post comment');
+      }
+      
+      console.log('✅ Comment posted successfully:', result.commentUrl);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to post comment';
+      setError(errorMessage);
+      console.error('Post comment error:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTestApi = async () => {
@@ -244,7 +300,31 @@ const App: React.FC = () => {
 
         {view === 'input' && !loading && (
           <div className="input-view">
+            <div className="mode-selector">
+              <button className="mode-btn active">💻 Code Review</button>
+              <button 
+                className="mode-btn"
+                onClick={() => setView('pr-input')}
+              >
+                🔗 PR Review
+              </button>
+            </div>
             <CodeInput onSubmit={handleCodeSubmit} loading={loading} />
+          </div>
+        )}
+
+        {view === 'pr-input' && !loading && (
+          <div className="input-view">
+            <div className="mode-selector">
+              <button 
+                className="mode-btn"
+                onClick={() => setView('input')}
+              >
+                💻 Code Review
+              </button>
+              <button className="mode-btn active">🔗 PR Review</button>
+            </div>
+            <PRInput onSubmit={handlePRSubmit} isLoading={loading} />
           </div>
         )}
 
@@ -260,6 +340,10 @@ const App: React.FC = () => {
             )}
             <ReviewPanel review={review} />
           </div>
+        )}
+
+        {view === 'pr-review' && !loading && prReview && (
+          <PRResults result={prReview} onBack={handleBackToInput} onPostComment={handlePostComment} />
         )}
       </main>
 

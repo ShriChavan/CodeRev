@@ -9,6 +9,7 @@ import { ReviewRequest, ReviewResponse } from '../types/review.types.js';
 import * as geminiService from '../services/geminiService.js';
 import * as promptEngine from '../services/promptEngine.js';
 import * as reviewParser from '../parsers/reviewParser.js';
+import { handlePRReview, handlePRCommentPost } from './prReview.js';
 
 const router = Router();
 
@@ -336,5 +337,17 @@ router.get('/test', async (req, res) => {
     });
   }
 });
+
+/**
+ * POST /api/pr-review
+ * Batch review for GitHub Pull Requests
+ */
+router.post('/pr-review', handlePRReview);
+
+/**
+ * POST /api/pr-review-comment
+ * Post review results as a comment on GitHub PR
+ */
+router.post('/pr-review-comment', handlePRCommentPost);
 
 export default router;

@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { ReviewRequest, ReviewResponse } from '../types/review.types.js';
+import { ReviewRequest, ReviewResponse, BatchPRReviewResponse } from '../types/review.types.js';
 
 // Get API URL from environment or use default
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
@@ -87,8 +87,99 @@ export async function submitCodeReview(request: ReviewRequest): Promise<ReviewRe
   }
   
   // All retries exhausted
-  console.error('❌ Max retries exceeded');
+  console.error('❌ Max retries exhausted');
   throw lastError;
+}
+
+/**
+ * Submits GitHub PR URL for batch review
+ * Analyzes all changed files in the PR
+ */
+export async function submitPRReview(prUrl: string, githubToken?: string): Promise<BatchPRReviewResponse> {
+  try {
+    console.log('🔄 Starting PR review submission...');
+    console.log('   PR URL:', prUrl);
+    console.log('   Token provided:', githubToken ? 'Yes' : 'No');
+
+    const response = await apiClient.post<BatchPRReviewResponse>('/pr-review', {
+      prUrl,
+      githubToken,
+    }, {
+      timeout: 120000, // 2 minutes for batch processing
+    });
+
+    console.log('✅ Received PR review response from backend:');
+    console.log('   Success:', response.data.success);
+    console.log('   Files reviewed:', response.data.filesReviewed?.length || 0);
+    console.log('   Total issues:', response.data.overallSummary?.totalIssues || 0);
+    console.log('✅ PR review completed:', response.data);
+    
+    return response.data;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status;
+      const errorData = error.response?.data as any;
+      const errorMessage = errorData?.error || error.message;
+      
+      console.error(`❌ PR review failed (${statusCode}):`, errorMessage);
+      throw new Error(errorMessage || `PR review failed with status code ${statusCode}`);
+    }
+    
+    console.error('❌ PR review error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Posts review results as a comment on GitHub PR
+ * Requires GitHub token if PR is private
+ */
+export async function submitPRComment(
+  prUrl: string,
+  commentBody: string,
+  githubToken?: string
+): Promise<{ success: boolean; commentUrl?: string; error?: string }> {
+  try {
+    console.log('📝 Posting review comment to GitHub PR...');
+    console.log('   PR URL:', prUrl);
+    console.log('   Comment length:', commentBody.length, 'characters');
+
+    const response = await apiClient.post('/pr-review-comment', {
+      prUrl,
+      commentBody,
+      githubToken,
+    }, {
+      timeout: 30000, // 30 seconds for comment posting
+    });
+
+    console.log('✅ Comment posted successfully:');
+    console.log('   URL:', response.data.commentUrl);
+    console.log('   Message:', response.data.message);
+
+    return {
+      success: true,
+      commentUrl: response.data.commentUrl,
+    };
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status;
+      const errorData = error.response?.data as any;
+      const errorMessage = errorData?.error || error.message;
+
+      console.error(`❌ Failed to post comment (${statusCode}):`, errorMessage);
+      return {
+        success: false,
+        error: errorMessage || `Failed with status code ${statusCode}`,
+      };
+    }
+
+    console.error('❌ Error posting comment:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      error: errorMsg,
+    };
+  }
 }
 
 export default apiClient;

@@ -54,3 +54,58 @@ export interface GeminiApiResponse {
     };
   }>;
 }
+
+/**
+ * GitHub PR Integration Types
+ */
+
+export interface GitHubPRRequest {
+  prUrl: string; // e.g., https://github.com/owner/repo/pull/123
+  githubToken?: string; // Optional: for private repos or higher rate limits
+}
+
+export interface GitHubFile {
+  fileName: string;
+  filePath: string;
+  language: string;
+  content: string;
+  changeType: 'added' | 'modified' | 'deleted';
+  additions: number;
+  deletions: number;
+}
+
+export interface FileReviewResult {
+  file: GitHubFile;
+  issues: ReviewIssue[];
+  summary: {
+    totalIssues: number;
+    errorCount: number;
+    warningCount: number;
+    infoCount: number;
+  };
+  reviewedAt: string;
+}
+
+export interface BatchPRReviewRequest {
+  prUrl: string;
+  githubToken?: string;
+}
+
+export interface BatchPRReviewResponse {
+  success: boolean;
+  requestId: string;
+  timestamp: string;
+  prUrl: string;
+  prNumber?: number;
+  repository?: string;
+  filesReviewed: FileReviewResult[];
+  overallSummary: {
+    totalFiles: number;
+    filesWithIssues: number;
+    totalIssues: number;
+    totalErrors: number;
+    totalWarnings: number;
+    totalInfo: number;
+  };
+  error?: string;
+}

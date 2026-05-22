@@ -37,3 +37,48 @@ export interface ReviewResponse {
   };
   error?: string;
 }
+
+/**
+ * GitHub PR Integration Types
+ */
+
+export interface GitHubFile {
+  fileName: string;
+  filePath: string;
+  language: string;
+  content: string;
+  changeType: 'added' | 'modified' | 'deleted';
+  additions: number;
+  deletions: number;
+}
+
+export interface FileReviewResult {
+  file: GitHubFile;
+  issues: ReviewIssue[];
+  summary: {
+    totalIssues: number;
+    errorCount: number;
+    warningCount: number;
+    infoCount: number;
+  };
+  reviewedAt: string;
+}
+
+export interface BatchPRReviewResponse {
+  success: boolean;
+  requestId: string;
+  timestamp: string;
+  prUrl: string;
+  prNumber?: number;
+  repository?: string;
+  filesReviewed: FileReviewResult[];
+  overallSummary: {
+    totalFiles: number;
+    filesWithIssues: number;
+    totalIssues: number;
+    totalErrors: number;
+    totalWarnings: number;
+    totalInfo: number;
+  };
+  error?: string;
+}
